@@ -1,0 +1,94 @@
+sequenceDiagram
+    participant User
+    participant App
+    participant SDK
+    participant API
+    participant LockSvc
+    participant DB
+    participant EventBus
+    participant ConsentSvc
+    participant Court
+    participant LEA as Law Enforcement
+    
+    Note over User,LEA: Digital Lock Activation (Section 9a)
+    
+    User->>App: Enable data lock
+    App->>SDK: enableDataLock(userId, categories)
+    SDK->>API: POST /v1/data-lock/enable
+    API->>LockSvc: Process lock request
+    LockSvc->>DB: Create lock record
+    LockSvc->>EventBus: Publish DataLocked event
+    LockSvc->>DB: Update user status
+    LockSvc-->>API: Lock activated
+    API-->>SDK: 201 Created + lockId
+    SDK-->>App: Lock confirmed
+    App-->>User: Data locked successfully
+    EventBus->>ConsentSvc: Block all data operations
+    EventBus->>App: Invalidate cached permissions
+    
+    Note over User,LEA: Attempted Access While Locked
+    
+    App->>SDK: verifyConsent(userId, category, purpose)
+    SDK->>API: GET /v1/consent/verify
+    API->>ConsentSvc: Check consent
+    ConsentSvc->>LockSvc: Check lock status
+    LockSvc->>DB: Query active locks
+    LockSvc-->>ConsentSvc: Data locked for user
+    ConsentSvc-->>API: Access denied - locked
+    API-->>SDK: 423 Locked
+    SDK-->>App: Cannot access data
+    App->>App: Block operation
+    
+    Note over User,LEA: Court Order Override (Section 9b, 16)
+    
+    LEA->>Court: Request warrant
+    Court->>Court: Particularized probable cause review
+    Court-->>LEA: Issue court order (orderID)
+    LEA->>API: POST /v1/data-lock/override (with orderID)
+    API->>LockSvc: Verify court order
+    LockSvc->>Court: Verify orderID with court system API
+    
+    alt Valid court order
+        Court-->>LockSvc: Order verified
+        LockSvc->>DB: Create override record
+        LockSvc->>DB: Update lock status to 'override'
+        LockSvc->>EventBus: Publish LockOverride event
+        LockSvc-->>API: Override granted
+        API-->>LEA: 200 OK + temporary access token
+        LEA->>API: Access data with override token
+        API->>ConsentSvc: Verify override
+        ConsentSvc->>LockSvc: Confirm override active
+        LockSvc-->>ConsentSvc: Override valid
+        ConsentSvc-->>API: Access granted
+        API-->>LEA: Return requested data
+        LockSvc->>DB: Log all access with orderID
+    else Invalid court order
+        Court-->>LockSvc: Order not found / invalid
+        LockSvc-->>API: Verification failed
+        API-->>LEA: 403 Forbidden
+    end
+    
+    Note over User,LEA: Lock Removal
+    
+    User->>App: Disable data lock
+    App->>SDK: disableDataLock(userId, lockId)
+    SDK->>API: POST /v1/data-lock/disable
+    API->>LockSvc: Process unlock request
+    LockSvc->>DB: Update lock status to 'inactive'
+    LockSvc->>EventBus: Publish DataUnlocked event
+    LockSvc-->>API: Lock removed
+    API-->>SDK: 200 OK
+    SDK-->>App: Lock disabled
+    App-->>User: Data unlocked successfully
+    EventBus->>ConsentSvc: Resume normal operations
+    
+    Note over User,LEA: Lock Status Monitoring
+    
+    App->>SDK: getLockStatus(userId)
+    SDK->>API: GET /v1/data-lock/status?userId={id}
+    API->>LockSvc: Query lock status
+    LockSvc->>DB: Get active locks + overrides
+    LockSvc-->>API: Status details
+    API-->>SDK: 200 OK + lock info
+    SDK-->>App: Display lock status
+    App-->>User: Show locked categories + overrides

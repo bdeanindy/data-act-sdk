@@ -1,0 +1,174 @@
+graph TB
+    subgraph "Internet"
+        Users[Users/Applications]
+        Court[Court Systems]
+    end
+
+    subgraph "CDN/Edge Layer"
+        CDN[CloudFront CDN<br/>Static Assets, Docs]
+        WAF[Web Application Firewall<br/>DDoS Protection]
+    end
+
+    subgraph "Load Balancing"
+        ALB[Application Load Balancer<br/>SSL Termination, Health Checks]
+    end
+
+    subgraph "Kubernetes Cluster - us-east-1"
+        subgraph "API Gateway Pods"
+            GW1[Gateway Pod 1]
+            GW2[Gateway Pod 2]
+            GW3[Gateway Pod 3]
+        end
+
+        subgraph "Service Pods - Auto-Scaling"
+            CS1[Consent Service<br/>Replicas: 3-10]
+            LS1[Lock Service<br/>Replicas: 3-10]
+            AS1[Audit Service<br/>Replicas: 3-10]
+            LK1[Likeness Service<br/>Replicas: 2-5]
+            IS1[Inheritance Service<br/>Replicas: 2-5]
+        end
+
+        subgraph "Supporting Pods"
+            Auth[Auth Service<br/>OAuth 2.0]
+            Notif[Notification Service<br/>Webhooks]
+            Worker[Background Workers<br/>Async Processing]
+        end
+    end
+
+    subgraph "Data Tier - Multi-AZ"
+        subgraph "Primary Database"
+            PG_Primary[(PostgreSQL Primary<br/>RDS Multi-AZ)]
+            PG_Replica1[(Read Replica 1)]
+            PG_Replica2[(Read Replica 2)]
+        end
+
+        subgraph "Cache Cluster"
+            Redis_M[(Redis Primary)]
+            Redis_R1[(Redis Replica 1)]
+            Redis_R2[(Redis Replica 2)]
+        end
+
+        subgraph "Event Streaming"
+            Kafka1[Kafka Broker 1]
+            Kafka2[Kafka Broker 2]
+            Kafka3[Kafka Broker 3]
+        end
+
+        subgraph "Object Storage"
+            S3[(S3 Buckets<br/>Versioned, Encrypted)]
+        end
+    end
+
+    subgraph "Kubernetes Cluster - us-west-2"
+        GW_W[Gateway Pods]
+        Services_W[Service Pods<br/>Read Replicas]
+        PG_W[(PostgreSQL<br/>Cross-Region Replica)]
+    end
+
+    subgraph "Monitoring & Observability"
+        Prometheus[Prometheus<br/>Metrics Collection]
+        Grafana[Grafana<br/>Dashboards]
+        ELK[ELK Stack<br/>Centralized Logging]
+        Jaeger[Jaeger<br/>Distributed Tracing]
+        PagerDuty[PagerDuty<br/>Alerting]
+    end
+
+    subgraph "Security & Secrets"
+        HSM[Hardware Security Module<br/>Key Management]
+        Vault[HashiCorp Vault<br/>Secrets Management]
+    end
+
+    subgraph "CI/CD Pipeline"
+        GitHub[GitHub Actions<br/>Source Control]
+        ArgoCD[ArgoCD<br/>GitOps Deployment]
+        Registry[Container Registry<br/>ECR]
+    end
+
+    Users --> CDN
+    Users --> WAF
+    Court --> WAF
+    CDN --> WAF
+    WAF --> ALB
+    
+    ALB --> GW1
+    ALB --> GW2
+    ALB --> GW3
+
+    GW1 --> Auth
+    GW2 --> Auth
+    GW3 --> Auth
+
+    GW1 --> CS1
+    GW1 --> LS1
+    GW1 --> AS1
+    GW1 --> LK1
+    GW1 --> IS1
+
+    CS1 --> PG_Primary
+    CS1 --> Redis_M
+    CS1 --> Kafka1
+    CS1 --> AS1
+
+    LS1 --> PG_Primary
+    LS1 --> Redis_M
+    LS1 --> Kafka1
+    LS1 --> Court
+
+    AS1 --> PG_Replica1
+    AS1 --> Kafka1
+    AS1 --> S3
+
+    LK1 --> PG_Primary
+    LK1 --> S3
+
+    IS1 --> PG_Primary
+    IS1 --> AS1
+
+    PG_Primary --> PG_Replica1
+    PG_Primary --> PG_Replica2
+    PG_Primary -.->|Async Replication| PG_W
+
+    Redis_M --> Redis_R1
+    Redis_M --> Redis_R2
+
+    Kafka1 --> Kafka2
+    Kafka2 --> Kafka3
+    
+    Kafka1 --> Worker
+    Worker --> Notif
+
+    CS1 -.->|Metrics| Prometheus
+    LS1 -.->|Metrics| Prometheus
+    AS1 -.->|Metrics| Prometheus
+    
+    CS1 -.->|Logs| ELK
+    LS1 -.->|Logs| ELK
+    AS1 -.->|Logs| ELK
+    
+    CS1 -.->|Traces| Jaeger
+    LS1 -.->|Traces| Jaeger
+    AS1 -.->|Traces| Jaeger
+
+    Prometheus --> Grafana
+    Prometheus --> PagerDuty
+    ELK --> PagerDuty
+
+    CS1 --> Vault
+    LS1 --> Vault
+    Auth --> HSM
+
+    GitHub --> Registry
+    Registry --> ArgoCD
+    ArgoCD --> GW1
+    ArgoCD --> CS1
+    ArgoCD --> LS1
+
+    Users -.->|DR Failover| GW_W
+    GW_W --> Services_W
+    Services_W --> PG_W
+
+    style ALB fill:#f96,stroke:#333,stroke-width:3px
+    style PG_Primary fill:#69f,stroke:#333,stroke-width:3px
+    style Kafka1 fill:#6f9,stroke:#333,stroke-width:2px
+    style HSM fill:#f66,stroke:#333,stroke-width:3px
+    style WAF fill:#f96,stroke:#333,stroke-width:2px

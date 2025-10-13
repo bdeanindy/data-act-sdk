@@ -1,0 +1,83 @@
+sequenceDiagram
+    participant User
+    participant App
+    participant SDK
+    participant API
+    participant ConsentSvc
+    participant DB
+    participant EventBus
+    participant AuditSvc
+    participant ThirdParty
+
+    Note over User,ThirdParty: Consent Request Flow (Section 5)
+    
+    User->>App: Interact with feature requiring consent
+    App->>SDK: requestConsent(userId, category, purpose, recipients)
+    SDK->>API: POST /v1/consent/request
+    API->>ConsentSvc: Process consent request
+    ConsentSvc->>DB: Check existing consent
+    
+    alt No existing consent
+        ConsentSvc->>DB: Create consent record
+        ConsentSvc->>EventBus: Publish ConsentGranted event
+        ConsentSvc->>AuditSvc: Log consent creation
+        ConsentSvc-->>API: Return consent receipt (JWT)
+        API-->>SDK: 201 Created + receipt
+        SDK-->>App: Consent granted
+        App-->>User: Feature enabled
+        EventBus->>ThirdParty: Notify consent granted
+    else Existing valid consent
+        ConsentSvc-->>API: Return existing consent
+        API-->>SDK: 200 OK
+        SDK-->>App: Consent already granted
+        App-->>User: Feature enabled
+    end
+
+    Note over User,ThirdParty: Consent Verification Flow
+    
+    App->>SDK: verifyConsent(userId, category, purpose)
+    SDK->>API: GET /v1/consent/verify?userId&category&purpose
+    API->>ConsentSvc: Verify consent exists and is active
+    ConsentSvc->>DB: Query consent + check data lock
+    
+    alt Consent valid and no lock
+        ConsentSvc-->>API: Valid consent
+        API-->>SDK: 200 OK + consent details
+        SDK-->>App: Proceed with operation
+    else Consent revoked or expired
+        ConsentSvc-->>API: Invalid consent
+        API-->>SDK: 403 Forbidden
+        SDK-->>App: Request new consent
+    else Data locked
+        ConsentSvc-->>API: Data locked
+        API-->>SDK: 423 Locked
+        SDK-->>App: Operation blocked
+    end
+
+    Note over User,ThirdParty: Consent Revocation Flow (Section 7c)
+    
+    User->>App: Revoke consent
+    App->>SDK: revokeConsent(userId, consentId)
+    SDK->>API: POST /v1/consent/revoke
+    API->>ConsentSvc: Process revocation
+    ConsentSvc->>DB: Update consent status + revokedAt
+    ConsentSvc->>EventBus: Publish ConsentRevoked event (immediate)
+    ConsentSvc->>AuditSvc: Log revocation
+    ConsentSvc-->>API: Revocation confirmed
+    API-->>SDK: 200 OK
+    SDK-->>App: Consent revoked
+    App-->>User: Confirmation message
+    EventBus->>ThirdParty: IMMEDIATE cease processing notification
+    ThirdParty->>EventBus: Acknowledge revocation
+    
+    Note over User,ThirdParty: Audit Trail Query (Section 7b)
+    
+    User->>App: Request access logs
+    App->>SDK: getAuditLogs(userId, startDate, endDate)
+    SDK->>API: GET /v1/audit/logs?userId&start&end
+    API->>AuditSvc: Query audit logs
+    AuditSvc->>DB: Retrieve logs with who/what/when/purpose
+    AuditSvc-->>API: Return audit trail
+    API-->>SDK: 200 OK + logs (CSV/JSON)
+    SDK-->>App: Display/export logs
+    App-->>User: Complete access history

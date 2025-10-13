@@ -1,0 +1,105 @@
+graph TB
+    subgraph "Client Applications"
+        WebApp[Web Application]
+        MobileApp[Mobile Application]
+        Backend[Backend Service]
+        CLI[CLI Utility]
+        AI[AI Coding Agent]
+    end
+
+    subgraph "SDK Layer"
+        JSSDK[JavaScript SDK]
+        PySdk[Python SDK]
+        JavaSDK[Java SDK]
+        GoSDK[Go SDK]
+    end
+
+    subgraph "API Gateway"
+        Gateway[API Gateway<br/>Auth, Rate Limiting, Routing]
+    end
+
+    subgraph "Core Services"
+        ConsentSvc[Consent Service<br/>Request, Verify, Revoke]
+        LockSvc[Data Lock Service<br/>Enable, Status, Override]
+        AuditSvc[Audit Service<br/>Logging, Query, Export]
+        LikenessSvc[Likeness Service<br/>Register, Verify, Report]
+        InheritSvc[Inheritance Service<br/>Designate, Transfer]
+        ComplianceSvc[Compliance Service<br/>Health, Reporting]
+    end
+
+    subgraph "Data Layer"
+        PrimaryDB[(PostgreSQL<br/>Primary Database)]
+        Cache[(Redis<br/>Cache Layer)]
+        EventStore[(Kafka/NATS<br/>Event Stream)]
+        ObjectStore[(S3<br/>Object Storage)]
+    end
+
+    subgraph "Supporting Services"
+        AuthSvc[Auth Service<br/>OAuth 2.0 / OIDC]
+        NotifSvc[Notification Service<br/>Webhooks, Email]
+        MonitorSvc[Monitoring<br/>Prometheus, Grafana]
+        AuditVerify[Audit Verifier<br/>Hash Chain Validation]
+    end
+
+    subgraph "External Systems"
+        Court[Court Order System<br/>Verification API]
+        DAOO[DAOO Registry<br/>National Compliance]
+        ThirdParty[Third-Party Apps<br/>Consent Recipients]
+    end
+
+    WebApp --> JSSDK
+    MobileApp --> JSSDK
+    Backend --> JSSDK
+    Backend --> PySdk
+    Backend --> JavaSDK
+    Backend --> GoSDK
+    CLI --> Gateway
+    AI --> Gateway
+
+    JSSDK --> Gateway
+    PySdk --> Gateway
+    JavaSDK --> Gateway
+    GoSDK --> Gateway
+
+    Gateway --> AuthSvc
+    Gateway --> ConsentSvc
+    Gateway --> LockSvc
+    Gateway --> AuditSvc
+    Gateway --> LikenessSvc
+    Gateway --> InheritSvc
+    Gateway --> ComplianceSvc
+
+    ConsentSvc --> PrimaryDB
+    ConsentSvc --> Cache
+    ConsentSvc --> EventStore
+    ConsentSvc --> AuditSvc
+
+    LockSvc --> PrimaryDB
+    LockSvc --> Cache
+    LockSvc --> EventStore
+    LockSvc --> Court
+
+    AuditSvc --> PrimaryDB
+    AuditSvc --> EventStore
+    AuditSvc --> ObjectStore
+    AuditSvc --> AuditVerify
+
+    LikenessSvc --> PrimaryDB
+    LikenessSvc --> ObjectStore
+    LikenessSvc --> AuditSvc
+
+    InheritSvc --> PrimaryDB
+    InheritSvc --> AuditSvc
+
+    ComplianceSvc --> PrimaryDB
+    ComplianceSvc --> DAOO
+    ComplianceSvc --> MonitorSvc
+
+    ConsentSvc -.->|Webhook| NotifSvc
+    LockSvc -.->|Webhook| NotifSvc
+    NotifSvc -.->|Notify| ThirdParty
+
+    style Gateway fill:#f9f,stroke:#333,stroke-width:4px
+    style PrimaryDB fill:#bbf,stroke:#333,stroke-width:2px
+    style EventStore fill:#bfb,stroke:#333,stroke-width:2px
+    style AuthSvc fill:#fbb,stroke:#333,stroke-width:2px
