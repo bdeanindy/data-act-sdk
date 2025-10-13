@@ -25,4 +25,4 @@ npm install data-act-sdk
 
 ## License
 
-MIT License – Built for universal civic empowerment.
+[Apache 2 OSS License](LICENSE)
