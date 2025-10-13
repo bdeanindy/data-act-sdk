@@ -1,28 +1,26 @@
 # D.A.T.A. Act SDK
 
-**Digital Autonomy & Transparency Accord (D.A.T.A. Act)**
+**Digital Autonomy Transparency & Accountability (D.A.T.A. Act)**
 
-This open-source SDK provides a modular framework for implementing compliance with the D.A.T.A. Act, empowering individuals to access, control, and protect their personal data across digital services and platforms.
+A privacy-first, modular TypeScript SDK that helps products implement the individual data rights of people according to the terms set forth in the D.A.T.A. Act (proposed legislative bill). Governance for data: access, audit, consent, revocation, lock, and inheritance.
 
-## Features
-
-- Individual data access and audit APIs
-- Consent and usage tracking framework
-- Data access revocation controls
-- Integration-ready with commercial and government systems
-
-## Directory Structure
-
-- `src/`: TypeScript source code for core SDK modules
-- `docs/`: Documentation and integration guides
-- `diagrams/`: Mermaid and system design diagrams
-
-## Getting Started
+## Quickstart
 
 ```bash
-npm install data-act-sdk
+npm i
+npm test   # 100% coverage on the scaffold
+npm run build
 ```
 
-## License
+## Modules
+- `ConsentManager` — granular opt-in/out with immutable audit trail
+- `AuditLedger` — structured logs for access/processing events
+- `LockService` — "data lock" control for self-protection
 
-[Apache 2 OSS License](LICENSE)
+## Scripts
+- `npm test` — runs jest with coverage thresholds at 100%
+- `npm run build` — compiles to `dist/`
+- `npm run lint` — lints the codebase
+
+## License
+Apache-2.0. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
